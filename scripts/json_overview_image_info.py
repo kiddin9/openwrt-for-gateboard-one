@@ -47,7 +47,7 @@ for device_id, profile in output.get("profiles", {}).items():
 
 
 if output:
-    default_packages, output["arch_packages"] = run(
+    default_packages, output["arch_packages"], output["kernel_version"] = run(
         [
             "make",
             "--no-print-directory",
@@ -55,6 +55,7 @@ if output:
             "target/linux/",
             "val.DEFAULT_PACKAGES",
             "val.ARCH_PACKAGES",
+            "val.LINUX_VERSION",
             "V=s",
         ],
         stdout=PIPE,
