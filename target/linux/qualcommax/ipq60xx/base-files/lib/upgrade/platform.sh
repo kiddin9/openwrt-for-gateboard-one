@@ -17,9 +17,11 @@ platform_pre_upgrade() {
 platform_do_upgrade() {
 	case "$(board_name)" in
 	cmiot,ax18|\
+	qihoo,v6|\
+	zn,m2|\
 	glinet,gl-axt1800|\
 	glinet,gl-ax1800)
-		nand_do_upgrade "$1"
+		nand_do_upgrade "$1"undefined
 		;;
 	jdc,ax1800-pro)
 		kernelname="0:HLOS"
