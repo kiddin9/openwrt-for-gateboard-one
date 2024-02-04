@@ -3,6 +3,8 @@
 /dts-v1/;
 /plugin/;
 
+#include "mt7981b-cmcc-rax3000m.dts"
+
 / {
 	compatible = "cmcc,rax3000m", "mediatek,mt7981";
 
@@ -62,6 +64,10 @@
 				spi-max-frequency = <52000000>;
 				spi-tx-bus-width = <4>;
 				spi-rx-bus-width = <4>;
+
+				mediatek,nmbm;
+				mediatek,bmt-max-ratio = <1>;
+				mediatek,bmt-max-reserved-blocks = <64>;
 
 				partitions {
 					compatible = "fixed-partitions";
