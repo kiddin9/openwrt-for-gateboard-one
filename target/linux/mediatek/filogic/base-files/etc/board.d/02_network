@@ -34,7 +34,7 @@ mediatek_setup_interfaces()
 	bananapi,bpi-r3)
 		ucidef_set_interfaces_lan_wan "lan1 lan2 lan3 lan4 sfp2" "eth1 wan"
 		;;
-	cmcc,rax3000m|\
+	cmcc,rax3000m*|\
 	h3c,magic-nx30-pro)
 		ucidef_set_interfaces_lan_wan "lan1 lan2 lan3" eth1
 		;;
@@ -103,14 +103,15 @@ mediatek_setup_macs()
 		wan_mac=$(macaddr_add "$lan_mac" 3)
 		label_mac=$lan_mac
 		;;
-	cmcc,rax3000m)
-		case "$(cmdline_get_var root)" in
-		/dev/mmc*)
-			wan_mac=$(mmc_get_mac_binary factory 0x2a)
-			lan_mac=$(mmc_get_mac_binary factory 0x24)
-			label_mac=$wan_mac
+	cmcc,rax3000m-emmc)
+		wan_mac=$(mmc_get_mac_binary factory 0x2a)
+		lan_mac=$(mmc_get_mac_binary factory 0x24)
+		label_mac=$wan_mac
 		;;
-		esac
+	cmcc,rax3000m)
+		wan_mac=$(mtd_get_mac_binary factory 0x2a)
+		lan_mac=$(mtd_get_mac_binary factory 0x24)
+		label_mac=$lan_mac
 		;;
 	glinet,gl-mt6000)
 		label_mac=$(mmc_get_mac_binary factory 0x0a)
