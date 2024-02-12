@@ -46,9 +46,9 @@ case "$board" in
 		[ "$PHYNBR" = "0" ] && macaddr_add $addr 1 > /sys${DEVPATH}/macaddress
 		[ "$PHYNBR" = "1" ] && macaddr_setbit_la $(macaddr_add $addr 2) > /sys${DEVPATH}/macaddress
 		;;
-	cmcc,rax3000m)
-		case "$(cmdline_get_var root)" in
-		/dev/mmc*)
+	cmcc,rax3000m*)
+		case "$board" in
+		cmcc,rax3000m-emmc)
 			addr=$(mmc_get_mac_binary factory 0xa)
 			;;
 		*)
