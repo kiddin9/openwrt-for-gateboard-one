@@ -22,6 +22,7 @@ PKG_CPE_ID:=cpe:/a:thekelleys:dnsmasq
 
 PKG_BUILD_DIR:=$(BUILD_DIR)/$(PKG_NAME)-$(BUILD_VARIANT)/$(PKG_NAME)-$(PKG_UPSTREAM_VERSION)
 
+PKG_BUILD_DEPENDS:=nftables-json
 PKG_INSTALL:=1
 PKG_BUILD_PARALLEL:=1
 PKG_BUILD_FLAGS:=lto
@@ -66,10 +67,13 @@ $(call Package/dnsmasq/Default)
   TITLE += (with DNSSEC, DHCPv6, Auth DNS, IPset, Nftset, Conntrack, NO_ID enabled by default)
   DEPENDS+=+PACKAGE_dnsmasq_full_dnssec:libnettle \
 	+PACKAGE_dnsmasq_full_ipset:kmod-ipt-ipset \
-	+PACKAGE_dnsmasq_full_conntrack:libnetfilter-conntrack \
-	+PACKAGE_dnsmasq_full_nftset:nftables-json
+	+PACKAGE_dnsmasq_full_conntrack:libnetfilter-conntrack
   VARIANT:=full
   PROVIDES:=dnsmasq
+endef
+
+define Package/dnsmasq-full/extra_provides
+    echo "libnftables.so.1";
 endef
 
 define Package/dnsmasq/description
