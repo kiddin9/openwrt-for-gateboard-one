@@ -958,10 +958,10 @@ endif
 endef
 TARGET_DEVICES += xiaomi_mi-router-ax3000t-ubootmod
 
-define Device/xiaomi_mi-router-wr30u-stock
+define Device/xiaomi_mi-router-wr30u
   DEVICE_VENDOR := Xiaomi
-  DEVICE_MODEL := Mi Router WR30U (stock layout)
-  DEVICE_DTS := mt7981b-xiaomi-mi-router-wr30u-stock
+  DEVICE_MODEL := Mi Router WR30U
+  DEVICE_DTS := mt7981b-xiaomi-mi-router-wr30u
   DEVICE_DTS_DIR := ../dts
   UBINIZE_OPTS := -E 5
   BLOCKSIZE := 128k
@@ -973,7 +973,7 @@ ifneq ($(CONFIG_TARGET_ROOTFS_INITRAMFS),)
 endif
   IMAGE/sysupgrade.bin := sysupgrade-tar | append-metadata
 endef
-TARGET_DEVICES += xiaomi_mi-router-wr30u-stock
+TARGET_DEVICES += xiaomi_mi-router-wr30u
 
 define Device/xiaomi_mi-router-wr30u-ubootmod
   DEVICE_VENDOR := Xiaomi
