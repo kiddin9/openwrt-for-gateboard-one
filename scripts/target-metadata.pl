@@ -437,6 +437,7 @@ sub gen_profile_mk() {
 		print "PROFILE_NAMES = ".join(" ", @profile_ids_unique)."\n";
 		foreach my $profile (@{$cur->{profiles}}) {
 			print $profile->{id}.'_NAME:='.$profile->{name}."\n";
+			print $profile->{id}.'_IMAGE_SIZE:='.$profile->{image_size}."\n";
 			print $profile->{id}.'_HAS_IMAGE_METADATA:='.$profile->{has_image_metadata}."\n";
 			if (defined($profile->{supported_devices}) and @{$profile->{supported_devices}} > 0) {
 				print $profile->{id}.'_SUPPORTED_DEVICES:='.join(' ', @{$profile->{supported_devices}})."\n";
