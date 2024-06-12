@@ -164,6 +164,10 @@
 		spi-tx-bus-width = <4>;
 		spi-rx-bus-width = <4>;
 
+		mediatek,nmbm;
+		mediatek,bmt-max-ratio = <1>;
+		mediatek,bmt-max-reserved-blocks = <64>;
+
 		partitions {
 			compatible = "fixed-partitions";
 			#address-cells = <1>;
@@ -171,7 +175,7 @@
 
 			partition@0 {
 				label = "bl2";
-				reg = <0x00000 0x0100000>;
+				reg = <0x0000000 0x0100000>;
 				read-only;
 			};
 
@@ -182,7 +186,7 @@
 
 			partition@180000 {
 				label = "factory";
-				reg = <0x180000 0x0200000>;
+				reg = <0x0180000 0x0200000>;
 				read-only;
 
 				nvmem-layout {
@@ -204,26 +208,26 @@
 
 			partition@380000 {
 				label = "fip";
-				reg = <0x380000 0x0200000>;
+				reg = <0x0380000 0x0200000>;
 				read-only;
 			};
 
 			partition@580000 {
 				label = "config";
-				reg = <0x580000 0x200000>;
+				reg = <0x0580000 0x0200000>;
 				read-only;
 			};
 
 			partition@780000 {
 				label = "config2";
-				reg = <0x780000 0x200000>;
+				reg = <0x0780000 0x0200000>;
 				read-only;
 			};
 
 			partition@980000 {
 				compatible = "linux,ubi";
 				label = "ubi";
-				reg = <0x980000 0x7680000>;
+				reg = <0x980000 0x6e00000>;
 
 				volumes {
 					ubi_rootdisk: ubi-volume-fit {
