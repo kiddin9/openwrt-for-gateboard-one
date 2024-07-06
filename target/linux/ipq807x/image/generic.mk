@@ -137,12 +137,7 @@ define Device/xiaomi_ax3600
 	PAGESIZE := 2048
 	DEVICE_DTS_CONFIG := config@ac04
 	SOC := ipq8071
-	KERNEL_SIZE := 36608k
 	DEVICE_PACKAGES := ipq-wifi-xiaomi_ax3600 kmod-ath10k-ct-smallbuffers ath10k-firmware-qca9887-ct
-ifneq ($(CONFIG_TARGET_ROOTFS_INITRAMFS),)
-	ARTIFACTS := initramfs-factory.ubi
-	ARTIFACT/initramfs-factory.ubi := append-image-stage initramfs-uImage.itb | ubinize-kernel
-endif
 endef
 TARGET_DEVICES += xiaomi_ax3600
 
@@ -155,13 +150,8 @@ define Device/xiaomi_ax9000
 	PAGESIZE := 2048
 	DEVICE_DTS_CONFIG := config@hk14
 	SOC := ipq8072
-	KERNEL_SIZE := 57344k
 	DEVICE_PACKAGES := ipq-wifi-xiaomi_ax9000 kmod-ath11k-pci ath11k-firmware-qcn9074 \
 	kmod-ath10k-ct ath10k-firmware-qca9887-ct
-ifneq ($(CONFIG_TARGET_ROOTFS_INITRAMFS),)
-	ARTIFACTS := initramfs-factory.ubi
-	ARTIFACT/initramfs-factory.ubi := append-image-stage initramfs-uImage.itb | ubinize-kernel
-endif
 endef
 TARGET_DEVICES += xiaomi_ax9000
 
