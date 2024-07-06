@@ -51,6 +51,12 @@ platform_do_upgrade() {
 		nand_do_restore_config || nand_do_upgrade_failed
 		buffalo_upgrade_optvol
 		;;
+	zte,mf269)
+		CI_KERN_UBIPART="ubi_kernel"
+		CI_ROOT_UBIPART="rootfs"
+		nand_do_upgrade "$1"
+		;;
+	cmcc,rm2-6|\
 	dynalink,dl-wrx36)
 		nand_do_upgrade "$1"
 		;;
