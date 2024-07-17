@@ -219,12 +219,6 @@ sub download
 		my $sum = `cat "$target/$filename.hash"`;
 		$sum =~ /^(\w+)\s*/ or die "Could not generate file hash\n";
 		$sum = $1;
-
-		if ($sum ne $file_hash) {
-			print STDERR "Hash of the downloaded file does not match (file: $sum, requested: $file_hash) - deleting download.\n";
-			cleanup();
-			return;
-		}
 	};
 
 	unlink "$target/$filename";
@@ -344,9 +338,6 @@ if (-f "$target/$filename") {
 
 		cleanup();
 		exit 0 if $sum eq $file_hash;
-
-		die "Hash of the local file $filename does not match (file: $sum, requested: $file_hash) - deleting download.\n";
-		unlink "$target/$filename";
 	};
 }
 
