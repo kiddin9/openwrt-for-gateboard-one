@@ -66,10 +66,15 @@ $(call Package/dnsmasq/Default)
   TITLE += (with DNSSEC, DHCPv6, Auth DNS, IPset, Nftset, Conntrack, NO_ID enabled by default)
   DEPENDS+=+PACKAGE_dnsmasq_full_dnssec:libnettle \
 	+PACKAGE_dnsmasq_full_ipset:kmod-ipt-ipset \
-	+PACKAGE_dnsmasq_full_conntrack:libnetfilter-conntrack \
-	+PACKAGE_dnsmasq_full_nftset:nftables-json
+	+PACKAGE_dnsmasq_full_conntrack:libnetfilter-conntrack
   VARIANT:=full
   PROVIDES:=dnsmasq
+endef
+
+define Package/dnsmasq-full/extra_provides
+    echo "libnftables.so.1"; \
+	echo "libjansson.so.4"; \
+	echo "libnftnl.so.11";
 endef
 
 define Package/dnsmasq/description
@@ -187,6 +192,7 @@ define Package/dnsmasq/install
 	$(INSTALL_DIR) $(1)/etc/uci-defaults
 	$(INSTALL_BIN) ./files/50-dnsmasq-migrate-resolv-conf-auto.sh $(1)/etc/uci-defaults
 	$(INSTALL_BIN) ./files/50-dnsmasq-migrate-ipset.sh $(1)/etc/uci-defaults
+	$(INSTALL_DIR) $(1)/usr/lib
 endef
 
 Package/dnsmasq-dhcpv6/install = $(Package/dnsmasq/install)
