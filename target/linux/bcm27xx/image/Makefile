@@ -201,7 +201,9 @@ define Device/rpi-5
 	cypress-firmware-43455-sdio \
 	brcmfmac-nvram-43455-sdio \
 	kmod-brcmfmac wpad-basic-mbedtls \
-	kmod-hwmon-pwmfan kmod-thermal
+	kmod-hwmon-pwmfan kmod-thermal \
+	kmod-usb-net-lan78xx \
+	kmod-r8169
   IMAGE/sysupgrade.img.gz := boot-common | sdcard-img | gzip | append-metadata
   IMAGE/factory.img.gz := boot-common | sdcard-img | gzip
 endef
