@@ -131,11 +131,34 @@ BUILD_PACKAGES:=$(sort $(DEFAULT_PACKAGES) $($(USER_PROFILE)_PACKAGES) kernel)
 # "-pkgname" in the package list means remove "pkgname" from the package list
 BUILD_PACKAGES:=$(filter-out $(filter -%,$(BUILD_PACKAGES)) $(patsubst -%,%,$(filter -%,$(BUILD_PACKAGES))),$(BUILD_PACKAGES))
 BUILD_PACKAGES:=$(USER_PACKAGES) $(BUILD_PACKAGES)
+IMAGE_SIZE_VALUE := $(shell echo $($(USER_PROFILE)_IMAGE_SIZE) | sed 's/k$$//')
+ifeq ($(shell test $(IMAGE_SIZE_VALUE) -lt 20480 && echo true),true)
+    SMALL_FLASH := true
+endif
+ifneq ($(findstring usb,$(BUILD_PACKAGES)),)
+    BUILD_PACKAGES += automount luci-app-diskman
+endif
+ifeq ($(SMALL_FLASH),true)
+    BUILD_PACKAGES += -coremark -htop -bash -openssh-sftp-server -luci-app-diskman
+	ifeq ($(shell grep -q small_flash $(TOPDIR)/repositories.conf || echo "not_found"),not_found)
+        $(shell echo "`grep kwrt_kiddin9 $(TOPDIR)/repositories.conf | sed -e 's/kiddin9/small_flash/g'`" >>$(TOPDIR)/repositories.conf)
+    endif
+else
+    $(shell sed -i "/small_flash/d" $(TOPDIR)/repositories.conf)
+endif
 BUILD_PACKAGES:=$(filter-out $(filter -%,$(BUILD_PACKAGES)) $(patsubst -%,%,$(filter -%,$(BUILD_PACKAGES))),$(BUILD_PACKAGES))
 PACKAGES:=
 
 _call_image: staging_dir/host/.prereq-build
-	echo 'Building images for $(BOARD)$(if $($(USER_PROFILE)_NAME), - $($(USER_PROFILE)_NAME))'
+	[ "$(DATE)" ] && DATE="$(DATE)" || DATE="`date +'%m.%d.%Y'`"; \
+	mkdir -p $(USER_FILES)/etc/uci-defaults || true; \
+	echo -e " \
+	sed -i \"s/[0-9]\+.[0-9]\+.[0-9]\{4\}/$$DATE/\" /etc/openwrt_release \n \
+	sed -i \"s/DISTRIB_ID=.*/DISTRIB_ID='$(ROOTFS_PARTSIZE)'/\" /etc/openwrt_release \n \
+	sed -i \"s/KWrt .* by/Kwrt $$DATE by/\" /etc/banner \n \
+	echo \"$$DATE\" >/etc/openwrt_version \n \
+	"> $(USER_FILES)/etc/uci-defaults/99-version; \
+	echo 'Building images for $(BOARD)$(if $($(USER_PROFILE)_NAME), - $($(USER_PROFILE)_NAME))'; \
 	echo 'Packages: $(BUILD_PACKAGES)'
 	echo
 	rm -rf $(TARGET_DIR) $(TARGET_DIR_ORIG)
@@ -146,6 +169,8 @@ _call_image: staging_dir/host/.prereq-build
 	$(MAKE) -s build_image
 	$(MAKE) -s json_overview_image_info
 	$(MAKE) -s checksum
+	rm -rf $(KERNEL_BUILD_DIR)/tmp
+	rm -rf $(KERNEL_BUILD_DIR)/root.*
 
 _call_manifest: FORCE
 	rm -rf $(TARGET_DIR)
@@ -186,7 +211,13 @@ package_install: FORCE
 	@echo Installing packages...
 	$(OPKG) install $(firstword $(wildcard $(LINUX_DIR)/libc_*.ipk $(PACKAGE_DIR)/libc_*.ipk))
 	$(OPKG) install $(firstword $(wildcard $(LINUX_DIR)/kernel_*.ipk $(PACKAGE_DIR)/kernel_*.ipk))
-	$(OPKG) install $(BUILD_PACKAGES)
+	for p in $(BUILD_PACKAGES); do \
+		if [[ $$p == luci-app-* && "`$(OPKG) list | grep luci-i18n-\`echo $$p | cut -d - -f 3-\`-zh-cn`" ]]; then \
+			packages+="luci-i18n-`echo $$p | cut -d - -f 3-`-zh-cn "; \
+		fi \
+	done; \
+	$(OPKG) install $(BUILD_PACKAGES) luci-i18n-base-zh-cn luci-i18n-base-en $$packages; \
+	$(OPKG) install --force-maintainer --force-reinstall my-default-settings
 
 prepare_rootfs: FORCE
 	@echo
@@ -200,12 +231,15 @@ prepare_rootfs: FORCE
 		) \
 	)
 	$(call prepare_rootfs,$(TARGET_DIR),$(USER_FILES),$(DISABLED_SERVICES))
+	$(if $(SMALL_FLASH), \
+			$(shell echo "`grep kwrt_kiddin9 $(TOPDIR)/repositories.conf | sed -e 's/kiddin9/small_flash/g'`" >>$(BUILD_DIR)/root-*/etc/opkg/distfeeds.conf) \
+	)
 
 build_image: FORCE
 	@echo
 	@echo Building images...
 	rm -rf $(BUILD_DIR)/json_info_files/
-	$(NO_TRACE_MAKE) -C target/linux/$(BOARD)/image install TARGET_BUILD=1 IB=1 EXTRA_IMAGE_NAME="$(EXTRA_IMAGE_NAME)" \
+	nice -n 19 $(NO_TRACE_MAKE) -C target/linux/$(BOARD)/image install TARGET_BUILD=1 IB=1 EXTRA_IMAGE_NAME="$(EXTRA_IMAGE_NAME)" \
 		$(if $(USER_PROFILE),PROFILE="$(USER_PROFILE)")
 
 $(BIN_DIR)/profiles.json: FORCE
