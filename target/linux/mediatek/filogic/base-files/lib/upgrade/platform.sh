@@ -112,6 +112,7 @@ platform_do_upgrade() {
 	yuncore,ax835)
 		default_do_upgrade "$1"
 		;;
+	cmcc,rax3000m-emmc|\
 	glinet,gl-mt2500|\
 	glinet,gl-mt6000|\
 	glinet,gl-x3000|\
@@ -201,6 +202,7 @@ platform_copy_config() {
 		fi
 		;;
 	acer,predator-w6|\
+	cmcc,rax3000m-emmc|\
 	glinet,gl-mt2500|\
 	glinet,gl-mt6000|\
 	glinet,gl-x3000|\
