@@ -85,19 +85,12 @@ help: FORCE
 # override variables from rules.mk
 PACKAGE_DIR:=$(TOPDIR)/packages
 LISTS_DIR:=$(subst $(space),/,$(patsubst %,..,$(subst /,$(space),$(TARGET_DIR))))$(DL_DIR)
-PACKAGE_DIR_ALL:=$(TOPDIR)/packages
-
 export OPKG_KEYS:=$(TOPDIR)/keys
 OPKG:=$(call opkg,$(TARGET_DIR)) \
 	-f $(TOPDIR)/repositories.conf \
 	--verify-program $(SCRIPT_DIR)/opkg-key \
 	--cache $(DL_DIR) \
 	--lists-dir $(LISTS_DIR)
-
-APK:=$(call apk,$(TARGET_DIR)) \
-	--cache-dir $(DL_DIR) \
-	--allow-untrusted
-
 
 include $(INCLUDE_DIR)/target.mk
 -include .profiles.mk
@@ -110,7 +103,7 @@ PROFILE_LIST = $(foreach p,$(PROFILE_NAMES), \
 
 
 .profiles.mk: .targetinfo
-	@$(SCRIPT_DIR)/target-metadata.pl profile_mk $< '$(BOARD)/$(SUBTARGET)' > $@
+	@$(SCRIPT_DIR)/target-metadata.pl profile_mk $< '$(BOARD)$(if $(SUBTARGET),/$(SUBTARGET))' > $@
 
 staging_dir/host/.prereq-build: include/prereq-build.mk
 	mkdir -p tmp
@@ -138,6 +131,26 @@ BUILD_PACKAGES:=$(sort $(DEFAULT_PACKAGES) $($(USER_PROFILE)_PACKAGES) kernel)
 # "-pkgname" in the package list means remove "pkgname" from the package list
 BUILD_PACKAGES:=$(filter-out $(filter -%,$(BUILD_PACKAGES)) $(patsubst -%,%,$(filter -%,$(BUILD_PACKAGES))),$(BUILD_PACKAGES))
 BUILD_PACKAGES:=$(USER_PACKAGES) $(BUILD_PACKAGES)
+IMAGE_SIZE_VALUE := $(shell echo $($(USER_PROFILE)_IMAGE_SIZE) | sed 's/k$$//')
+ifdef IMAGE_SIZE_VALUE
+  ifeq ($(shell test $(IMAGE_SIZE_VALUE) -lt 20480 && echo true),true)
+    SMALL_FLASH := true
+  endif
+endif
+ifneq ($(findstring usb,$(BUILD_PACKAGES)),)
+    BUILD_PACKAGES += automount luci-app-diskman
+endif
+ifeq ($(SMALL_FLASH),true)
+    BUILD_PACKAGES += -coremark -htop -bash -openssh-sftp-server -luci-app-diskman
+	ifeq ($(shell grep -q small_flash $(TOPDIR)/repositories.conf || echo "not_found"),not_found)
+        $(shell echo "`grep kwrt_kiddin9 $(TOPDIR)/repositories.conf | sed -e 's/kiddin9/small_flash/g'`" >>$(TOPDIR)/repositories.conf)
+    endif
+else
+    $(shell sed -i "/small_flash/d" $(TOPDIR)/repositories.conf)
+endif
+define add_zh_cn_packages
+$(eval BUILD_PACKAGES += $(foreach pkg,$(BUILD_PACKAGES),$(if $(and $(filter luci-app-%,$(pkg)),$(shell $(OPKG) list | grep -q "^luci-i18n-$(patsubst luci-app-%,%,$(pkg))-zh-cn" && echo 1)),luci-i18n-$(patsubst luci-app-%,%,$(pkg))-zh-cn)))
+endef
 BUILD_PACKAGES:=$(filter-out $(filter -%,$(BUILD_PACKAGES)) $(patsubst -%,%,$(filter -%,$(BUILD_PACKAGES))),$(BUILD_PACKAGES))
 PACKAGES:=
 
@@ -153,35 +166,28 @@ _call_image: staging_dir/host/.prereq-build
 	$(MAKE) -s build_image
 	$(MAKE) -s json_overview_image_info
 	$(MAKE) -s checksum
+	rm -rf $(KERNEL_BUILD_DIR)/tmp
+	rm -rf $(KERNEL_BUILD_DIR)/root.*
 
 _call_manifest: FORCE
 	rm -rf $(TARGET_DIR)
 	mkdir -p $(TARGET_DIR) $(BIN_DIR) $(TMP_DIR) $(DL_DIR)
 	$(MAKE) package_reload >/dev/null
 	$(MAKE) package_install >/dev/null
-ifeq ($(CONFIG_USE_APK),)
 	$(OPKG) list-installed $(if $(STRIP_ABI),--strip-abi)
-else
-	$(APK) list --quiet --manifest --no-network
-endif
 
 package_index: FORCE
 	@echo >&2
 	@echo Building package index... >&2
 	@mkdir -p $(TMP_DIR) $(TARGET_DIR)/tmp
-ifeq ($(CONFIG_USE_APK),)
 	(cd $(PACKAGE_DIR); $(SCRIPT_DIR)/ipkg-make-index.sh . > Packages && \
 		gzip -9nc Packages > Packages.gz; \
 		$(if $(CONFIG_SIGNATURE_CHECK), \
 			$(STAGING_DIR_HOST)/bin/usign -S -m Packages -s $(BUILD_KEY)) \
 	) >/dev/null 2>/dev/null
 	$(OPKG) update >&2 || true
-else
-	(cd $(PACKAGE_DIR); $(APK) mkndx --output packages.adb *.apk) >&2
-endif
 
 package_reload:
-ifeq ($(CONFIG_USE_APK),)
 	if [ -d "$(PACKAGE_DIR)" ] && ( \
 			[ ! -f "$(PACKAGE_DIR)/Packages" ] || \
 			[ ! -f "$(PACKAGE_DIR)/Packages.gz" ] || \
@@ -192,65 +198,48 @@ ifeq ($(CONFIG_USE_APK),)
 		mkdir -p $(TARGET_DIR)/tmp; \
 		$(OPKG) update >&2 || true; \
 	fi
-else
-	if [ -d "$(PACKAGE_DIR)" ] && ( \
-			[ ! -f "$(PACKAGE_DIR)/packages.adb" ] || \
-			[ "`find $(PACKAGE_DIR) -cnewer $(PACKAGE_DIR)/packages.adb`" ] ); then \
-		echo "Package list missing or not up-to-date, generating it." >&2 ;\
-		$(MAKE) package_index; \
-	else \
-		mkdir -p $(TARGET_DIR)/tmp; \
-		$(APK) update >&2 || true; \
-	fi
-endif
 
 package_list: FORCE
 	@$(MAKE) -s package_reload
-ifeq ($(CONFIG_USE_APK),)
 	@$(OPKG) list --size 2>/dev/null
-else
-	@$(APK) list --size 2>/dev/null
-endif
 
 package_install: FORCE
 	@echo
 	@echo Installing packages...
-ifeq ($(CONFIG_USE_APK),)
+	$(eval $(call add_zh_cn_packages))
 	$(OPKG) install $(firstword $(wildcard $(LINUX_DIR)/libc_*.ipk $(PACKAGE_DIR)/libc_*.ipk))
 	$(OPKG) install $(firstword $(wildcard $(LINUX_DIR)/kernel_*.ipk $(PACKAGE_DIR)/kernel_*.ipk))
-	$(OPKG) install $(BUILD_PACKAGES)
-else
-	$(APK) add --initdb --no-scripts $(firstword $(wildcard $(LINUX_DIR)/libc-*.apk $(PACKAGE_DIR)/libc_*.apk))
-	$(APK) add --no-scripts $(firstword $(wildcard $(LINUX_DIR)/kernel-*.apk $(PACKAGE_DIR)/kernel_*.apk))
-	$(APK) add --no-scripts $(BUILD_PACKAGES)
-endif
+	$(OPKG) install $(BUILD_PACKAGES) luci-i18n-base-zh-cn || true
+	$(if $(USER_FILES), \
+	find $(USER_FILES) -name "*.ipk" -print0 | \
+	while IFS= read -r -d '' ipk; do \
+      $(OPKG) install "$$ipk" && rm -f "$$ipk" || true; \
+	done; \
+	)
+	$(OPKG) install --force-maintainer --force-reinstall my-default-settings
 
 prepare_rootfs: FORCE
 	@echo
 	@echo Finalizing root filesystem...
 
 	$(CP) $(TARGET_DIR) $(TARGET_DIR_ORIG)
-ifeq ($(CONFIG_USE_APK),)
 	$(if $(CONFIG_SIGNATURE_CHECK), \
 		$(if $(ADD_LOCAL_KEY), \
 			OPKG_KEYS=$(TARGET_DIR)/etc/opkg/keys/ \
 			$(SCRIPT_DIR)/opkg-key add $(BUILD_KEY).pub \
 		) \
 	)
-endif
 	$(call prepare_rootfs,$(TARGET_DIR),$(USER_FILES),$(DISABLED_SERVICES))
+	$(if $(SMALL_FLASH), \
+			$(shell echo "`grep kwrt_kiddin9 $(TOPDIR)/repositories.conf | sed -e 's/kiddin9/small_flash/g'`" >>$(BUILD_DIR)/root-*/etc/opkg/distfeeds.conf) \
+	)
 
 build_image: FORCE
 	@echo
 	@echo Building images...
 	rm -rf $(BUILD_DIR)/json_info_files/
-	if [ -d "target/linux/feeds/$(BOARD)" ]; then \
-		$(NO_TRACE_MAKE) -C target/linux/feeds/$(BOARD)/image install TARGET_BUILD=1 IB=1 EXTRA_IMAGE_NAME="$(EXTRA_IMAGE_NAME)" \
-			$(if $(USER_PROFILE),PROFILE="$(USER_PROFILE)"); \
-	else \
-		$(NO_TRACE_MAKE) -C target/linux/$(BOARD)/image install TARGET_BUILD=1 IB=1 EXTRA_IMAGE_NAME="$(EXTRA_IMAGE_NAME)" \
-			$(if $(USER_PROFILE),PROFILE="$(USER_PROFILE)"); \
-	fi
+	nice -n 19 $(NO_TRACE_MAKE) -C target/linux/$(BOARD)/image install TARGET_BUILD=1 IB=1 EXTRA_IMAGE_NAME="$(EXTRA_IMAGE_NAME)" \
+		$(if $(USER_PROFILE),PROFILE="$(USER_PROFILE)")
 
 $(BIN_DIR)/profiles.json: FORCE
 	$(if $(CONFIG_JSON_OVERVIEW_IMAGE_INFO), \
@@ -284,7 +273,6 @@ ifneq ($(PROFILE),)
 endif
 
 _check_keys: FORCE
-ifeq ($(CONFIG_USE_APK),)
 ifneq ($(CONFIG_SIGNATURE_CHECK),)
 	@if [ ! -s $(BUILD_KEY) -o ! -s $(BUILD_KEY).pub ]; then \
 		echo Generate local signing keys... >&2; \
@@ -299,9 +287,6 @@ ifneq ($(CONFIG_SIGNATURE_CHECK),)
 			-p $(BUILD_KEY).pub \
 			-s $(BUILD_KEY); \
 	fi
-endif
-else
-	# TODO
 endif
 
 image:
@@ -330,11 +315,7 @@ ifeq ($(PACKAGE),)
 	@exit 1
 endif
 	@$(MAKE) -s package_reload
-ifeq ($(CONFIG_USE_APK),)
-	@$(OPKG) list --depends $(PACKAGE)
-else
-	@$(APK) list --depends $(PACKAGE)
-endif
+	@$(OPKG) whatdepends -A $(PACKAGE)
 
 package_depends: FORCE
 ifeq ($(PACKAGE),)
@@ -342,10 +323,7 @@ ifeq ($(PACKAGE),)
 	@exit 1
 endif
 	@$(MAKE) -s package_reload
-ifeq ($(CONFIG_USE_APK),)
 	@$(OPKG) depends -A $(PACKAGE)
-else
-	@$(OPKG) whatdepends -A $(PACKAGE)
-endif
+
 
 .SILENT: help info image manifest package_whatdepends package_depends
