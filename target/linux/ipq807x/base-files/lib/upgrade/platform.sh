@@ -43,6 +43,10 @@ platform_pre_upgrade() {
 
 platform_do_upgrade() {
 	case "$(board_name)" in
+	aliyun,ap8220)
+		CI_UBIPART="rootfs"
+		nand_do_upgrade "$1"
+		;;
 	buffalo,wxr-5950ax12)
 		CI_KERN_UBIPART="rootfs"
 		CI_ROOT_UBIPART="user_property"
